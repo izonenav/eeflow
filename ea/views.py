@@ -9,6 +9,7 @@ from typing import List
 
 from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.request import Request
 
@@ -139,6 +140,9 @@ def get_todo_count(request: Request):
 
 @api_view(['GET'])
 def written_document(request: Request):
+    paginator = PageNumberPagination()
+    paginator.page_size = 25
+
     start_date: date = create_date(request.query_params.get('startDate'))
     end_date: date = create_date(request.query_params.get('endDate'))
     search: str = request.query_params.get('search')
@@ -152,21 +156,18 @@ def written_document(request: Request):
                           datetime.combine(end_date, time.max))))
 
     documents = filter_document(documents, search, batch_number, user, department)
+    total_number = documents.count()
+    documents = paginator.paginate_queryset(documents, request)
 
     serializer = DocumentSerializer(documents, many=True)
-    return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-def document(request: Request):
-    document_id: date = request.query_params.get('document_id')
-    document: Document = Document.objects.get(id=document_id)
-    serializer = DocumentSerializer(document)
-    return Response(data=serializer.data, status=status.HTTP_200_OK)
+    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 def approved_document(request: Request):
+    paginator = PageNumberPagination()
+    paginator.page_size = 25
+
     start_date: date = create_date(request.query_params.get('startDate'))
     end_date: date = create_date(request.query_params.get('endDate'))
     search: str = request.query_params.get('search')
@@ -181,13 +182,27 @@ def approved_document(request: Request):
                           datetime.combine(end_date, time.max))))
 
     documents = filter_document(documents, search, batch_number, user, department)
+    total_number = documents.count()
+    documents = paginator.paginate_queryset(documents, request)
 
     serializer = DocumentSerializer(documents, many=True)
+
+    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def document(request: Request):
+    document_id: date = request.query_params.get('document_id')
+    document: Document = Document.objects.get(id=document_id)
+    serializer = DocumentSerializer(document)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 def rejected_document(request: Request):
+    paginator = PageNumberPagination()
+    paginator.page_size = 25
+
     start_date: date = create_date(request.query_params.get('startDate'))
     end_date: date = create_date(request.query_params.get('endDate'))
     search: str = request.query_params.get('search')
@@ -202,9 +217,11 @@ def rejected_document(request: Request):
                           datetime.combine(end_date, time.max))))
 
     documents = filter_document(documents, search, batch_number, user, department)
+    total_number = documents.count()
+    documents = paginator.paginate_queryset(documents, request)
 
     serializer = DocumentSerializer(documents, many=True)
-    return Response(data=serializer.data, status=status.HTTP_200_OK)
+    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
