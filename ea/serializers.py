@@ -59,6 +59,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 class DocumentSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.first_name')
+    author_id = serializers.CharField(source='author.username')
     department = serializers.CharField(source='author.employee.department.name')
     created = serializers.DateTimeField(format='%Y-%m-%d')
     doc_status = serializers.CharField(source='get_doc_status_display')
@@ -71,8 +72,8 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Document
-        fields = ['id', 'title', 'author', 'department', 'doc_status', 'created', 'batch_number', 'document_type',
-                  'attachments', 'invoices', 'signs', 'price', 'invoices_count']
+        fields = ['id', 'title', 'author', 'author_id', 'department', 'doc_status', 'created', 'batch_number',
+                  'document_type', 'attachments', 'invoices', 'signs', 'price', 'invoices_count']
 
 
 class PushSerializer(serializers.ModelSerializer):

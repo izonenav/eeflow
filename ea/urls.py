@@ -19,7 +19,7 @@ from rest_framework_swagger.views import get_swagger_view
 
 from ea.views import send_push, create_document, get_defaultUsers, get_departmentUsers, allUsers, written_document, \
     create_push, delete_push, sign_document, do_sign, approved_document, rejected_document, do_sign_all, get_todo_count, \
-    check_push, document
+    check_push, document, add_attachment
 
 API_TITLE = 'Blog API'
 API_DESCRIPTION = 'A Web API for create and edit blog'
@@ -33,6 +33,7 @@ urlpatterns = [
     path('delete_push/', delete_push, name='delete_push'),
 
     path('create_document/', create_document, name='create_document'),
+    path('add_attachment/', add_attachment, name='add_attachment'),
     path('document/', document, name='document'),
     path('written_document/', written_document, name='written_document'),
     path('approved_document/', approved_document, name='approved_document'),

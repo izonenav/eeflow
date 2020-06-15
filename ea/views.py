@@ -13,11 +13,11 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.request import Request
 
-from ea.models import Push, Document, Attachment, Sign, SIGN_TYPE, DefaulSignList, DOCUMENT_TYPE
+from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice
 from ea.serializers import DefaultUsersSerializer, SignUsersSerializer, DocumentSerializer, PushSerializer
-from ea.services import DocumentServices, Approvers, create_date, filter_document
+from ea.services import DocumentServices, Approvers, create_date, filter_document, create_attachments
 
-from employee.models import Department, Employee
+from employee.models import Employee
 from erp.services import OracleService
 
 
@@ -97,6 +97,28 @@ def create_document(request: Request):
     service = OracleService()
     service.execute_insert_query('kcfeed.eabatno',
                                  ['BATNO', 'BATDT'], [batch_number, datetime.now().strftime("%Y%m%d")])
+
+    return Response(status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def add_attachment(request: Request):
+    document_id: int = request.data.get('document_id')
+    document: Document = Document.objects.get(id=document_id)
+    attachments: list = request.FILES.getlist('files')
+    attachments_counts: list = request.POST.getlist('counts')
+    attachments_invoices: list = request.POST.getlist('invoices')
+
+    for invoice_id in attachments_invoices:
+        """
+        invoice's attachments create
+        """
+        attachment_count = int(attachments_counts[0])
+        if attachment_count > 0:
+            invoice_attachments = attachments[0:attachment_count]
+            del attachments[0:attachment_count]
+            create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(), document)
+        attachments_counts.pop(0)
 
     return Response(status=status.HTTP_201_CREATED)
 

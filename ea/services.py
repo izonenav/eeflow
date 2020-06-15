@@ -54,6 +54,36 @@ def filter_document(documents: QuerySet, search: str, batch_number: str,
     return documents
 
 
+def create_attachments(attachments: list, invoice: Invoice, document: Document) -> None:
+    for attachment in attachments:
+        fs = FileSystemStorage(location=settings.MEDIA_ROOT + '/attachment/')
+        filename = fs.save(attachment.name, attachment)
+        size = attachment.size
+        is_img = False
+        is_pdf = False
+
+        if 'image' in attachment.content_type:
+            if attachment.size > 2000000:  # 3MB 보다 크면 용량 줄이기
+                os.chdir(fs.location)
+                image = Image.open(filename)
+                image.save(filename, quailty=50)
+                size = len(Image.open(filename).fp.read())
+            is_img = True
+
+        if 'pdf' in attachment.content_type:
+            is_pdf = True
+
+        Attachment.objects.create(
+            invoice=invoice,
+            document=document,
+            title=filename,
+            size=size,
+            path='attachment/' + filename,
+            isImg=is_img,
+            isPdf=is_pdf
+        )
+
+
 @transaction.atomic
 class DocumentServices:
     def __init__(self, **kwargs):
@@ -78,10 +108,10 @@ class DocumentServices:
             if attachment_count > 0:
                 invoice_attachments = attachments[0:attachment_count]
                 del attachments[0:attachment_count]
-                # self.create_attachments(invoice_attachments, Invoice.objects.get(IDS=invoice_id), document)
-                self.create_attachments(invoice_attachments,
-                                        Invoice.objects.filter(Q(IDS=invoice_id), ~Q(document__doc_status=2)).first(),
-                                        document)
+                create_attachments(invoice_attachments,
+                                   Invoice.objects.filter(Q(IDS=invoice_id), ~Q(document__doc_status=2)).first(),
+                                   document)
+
             attachments_counts.pop(0)
 
         DefaulSignList.objects.filter(Q(user=author), Q(document_type=document.document_type)).delete()
@@ -93,8 +123,6 @@ class DocumentServices:
             user: User = User.objects.get(username=approver.get('id'))
             self.create_sign(user, i, document, approver.get('type'))
             self.create_defaulsignlist(author, user.employee, approver.get('type'), i, document.document_type)
-
-        # self.send_push(document)
 
     def create_document(self, title: str, auhor: User, approvers: Approvers,
                         batch_number: int, document_type: str) -> Document:
@@ -120,34 +148,35 @@ class DocumentServices:
             document_type=doc_type
         )
 
-    def create_attachments(self, attachments: list, invoice: Invoice, document: Document) -> None:
-        for attachment in attachments:
-            fs = FileSystemStorage(location=settings.MEDIA_ROOT + '/attachment/')
-            filename = fs.save(attachment.name, attachment)
-            size = attachment.size
-            is_img = False
-            is_pdf = False
-
-            if 'image' in attachment.content_type:
-                if attachment.size > 2000000:  # 3MB 보다 크면 용량 줄이기
-                    os.chdir(fs.location)
-                    image = Image.open(filename)
-                    image.save(filename, quailty=50)
-                    size = len(Image.open(filename).fp.read())
-                is_img = True
-
-            if 'pdf' in attachment.content_type:
-                is_pdf = True
-
-            Attachment.objects.create(
-                invoice=invoice,
-                document=document,
-                title=filename,
-                size=size,
-                path='attachment/' + filename,
-                isImg=is_img,
-                isPdf=is_pdf
-            )
+    # @classmethod
+    # def create_attachments(cls, attachments: list, invoice: Invoice, document: Document) -> None:
+    #     for attachment in attachments:
+    #         fs = FileSystemStorage(location=settings.MEDIA_ROOT + '/attachment/')
+    #         filename = fs.save(attachment.name, attachment)
+    #         size = attachment.size
+    #         is_img = False
+    #         is_pdf = False
+    #
+    #         if 'image' in attachment.content_type:
+    #             if attachment.size > 2000000:  # 3MB 보다 크면 용량 줄이기
+    #                 os.chdir(fs.location)
+    #                 image = Image.open(filename)
+    #                 image.save(filename, quailty=50)
+    #                 size = len(Image.open(filename).fp.read())
+    #             is_img = True
+    #
+    #         if 'pdf' in attachment.content_type:
+    #             is_pdf = True
+    #
+    #         Attachment.objects.create(
+    #             invoice=invoice,
+    #             document=document,
+    #             title=filename,
+    #             size=size,
+    #             path='attachment/' + filename,
+    #             isImg=is_img,
+    #             isPdf=is_pdf
+    #         )
 
     def create_invoices(self, document: Document) -> None:
         if document.document_type == '1':
