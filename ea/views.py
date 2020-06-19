@@ -13,9 +13,10 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.request import Request
 
-from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice
-from ea.serializers import DefaultUsersSerializer, SignUsersSerializer, DocumentSerializer, PushSerializer
-from ea.services import DocumentServices, Approvers, create_date, filter_document, create_attachments
+from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice, SignGroup, Attachment, SignList
+from ea.serializers import DefaultUsersSerializer, SignUsersSerializer, DocumentSerializer, PushSerializer, \
+    SignGroupSerializer
+from ea.services import DocumentServices, Approvers, create_date, filter_document
 
 from employee.models import Employee
 from erp.services import OracleService
@@ -25,7 +26,7 @@ def send_push(request: HttpRequest):
     if request.method == 'POST':
         pushes: List[Push] = request.user.push_data.all()
         for push in pushes:
-            push.send_push('이승우짱!!!')
+            push.send_push('seungwoo')
         return HttpResponse('<H1>HI</H1>')
 
 
@@ -117,7 +118,8 @@ def add_attachment(request: Request):
         if attachment_count > 0:
             invoice_attachments = attachments[0:attachment_count]
             del attachments[0:attachment_count]
-            create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(), document)
+            # create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(), document)
+            Attachment.create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(), document)
         attachments_counts.pop(0)
 
     return Response(status=status.HTTP_201_CREATED)
@@ -138,7 +140,6 @@ def get_defaultUsers(request: Request, document_type: str):
 
 @api_view(['GET'])
 def get_departmentUsers(request: Request):
-    # department = Department.objects.get(name=department_name)
     employees = Employee.objects.filter(department=request.user.employee.department)
     serializer = SignUsersSerializer(employees, many=True)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
@@ -301,3 +302,41 @@ def do_sign_all(request: Request):
         sign.approve_sign('')
 
     return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def create_sign_group(request: Request):
+    group_name: str = request.data.get('groupName')
+    approvers: str = request.data.get('approvers')
+    approvers: Approvers = json.loads(approvers)
+
+    if SignGroup.objects.filter(Q(name=group_name), Q(user=request.user)).first():
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    sign_group = SignGroup.objects.create(user=request.user, name=group_name)
+
+    for i, approver in enumerate(approvers):
+        employee: Employee = Employee.objects.get(user__username=approver.get('id'))
+        SignList.objects.create(
+            group=sign_group,
+            approver=employee,
+            type=approver.get('type'),
+            order=i
+        )
+
+    return Response(status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+def sign_group(request: Request):
+    sign_group: QuerySet = SignGroup.objects.filter(user=request.user)
+    serializer = SignGroupSerializer(sign_group, many=True)
+    return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+def delete_sign_group(request: Request, sign_group_id: int):
+    SignGroup.objects.get(id=sign_group_id).delete()
+    sign_group: QuerySet = SignGroup.objects.filter(user=request.user)
+    serializer = SignGroupSerializer(sign_group, many=True)
+    return Response(data=serializer.data, status=status.HTTP_200_OK)

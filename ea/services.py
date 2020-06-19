@@ -1,15 +1,10 @@
-from datetime import date, datetime, time
-from django.conf import settings
+from datetime import date
 from django.contrib.auth.models import User
-from django.core.files.storage import FileSystemStorage
 from django.db import transaction
 from django.db.models import Q, QuerySet, Sum
 
-from ea.models import Document, Attachment, Sign, SIGN_TYPE, DefaulSignList, Invoice
+from ea.models import Document, Attachment, Sign, DefaulSignList, Invoice
 from employee.models import Employee
-from PIL import Image
-import os
-import json
 
 from typing import List, Union
 
@@ -54,36 +49,6 @@ def filter_document(documents: QuerySet, search: str, batch_number: str,
     return documents
 
 
-def create_attachments(attachments: list, invoice: Invoice, document: Document) -> None:
-    for attachment in attachments:
-        fs = FileSystemStorage(location=settings.MEDIA_ROOT + '/attachment/')
-        filename = fs.save(attachment.name, attachment)
-        size = attachment.size
-        is_img = False
-        is_pdf = False
-
-        if 'image' in attachment.content_type:
-            if attachment.size > 2000000:  # 3MB 보다 크면 용량 줄이기
-                os.chdir(fs.location)
-                image = Image.open(filename)
-                image.save(filename, quailty=50)
-                size = len(Image.open(filename).fp.read())
-            is_img = True
-
-        if 'pdf' in attachment.content_type:
-            is_pdf = True
-
-        Attachment.objects.create(
-            invoice=invoice,
-            document=document,
-            title=filename,
-            size=size,
-            path='attachment/' + filename,
-            isImg=is_img,
-            isPdf=is_pdf
-        )
-
-
 @transaction.atomic
 class DocumentServices:
     def __init__(self, **kwargs):
@@ -108,9 +73,10 @@ class DocumentServices:
             if attachment_count > 0:
                 invoice_attachments = attachments[0:attachment_count]
                 del attachments[0:attachment_count]
-                create_attachments(invoice_attachments,
-                                   Invoice.objects.filter(Q(IDS=invoice_id), ~Q(document__doc_status=2)).first(),
-                                   document)
+                Attachment.create_attachments(invoice_attachments,
+                                              Invoice.objects.filter(Q(IDS=invoice_id),
+                                                                     ~Q(document__doc_status=2)).first(),
+                                              document)
 
             attachments_counts.pop(0)
 
@@ -121,7 +87,7 @@ class DocumentServices:
             approvers 순서대로 왔다고 가정
             """
             user: User = User.objects.get(username=approver.get('id'))
-            self.create_sign(user, i, document, approver.get('type'))
+            Sign.create_sign(user, i, document, approver.get('type'))
             self.create_defaulsignlist(author, user.employee, approver.get('type'), i, document.document_type)
 
     def create_document(self, title: str, auhor: User, approvers: Approvers,
@@ -148,36 +114,6 @@ class DocumentServices:
             document_type=doc_type
         )
 
-    # @classmethod
-    # def create_attachments(cls, attachments: list, invoice: Invoice, document: Document) -> None:
-    #     for attachment in attachments:
-    #         fs = FileSystemStorage(location=settings.MEDIA_ROOT + '/attachment/')
-    #         filename = fs.save(attachment.name, attachment)
-    #         size = attachment.size
-    #         is_img = False
-    #         is_pdf = False
-    #
-    #         if 'image' in attachment.content_type:
-    #             if attachment.size > 2000000:  # 3MB 보다 크면 용량 줄이기
-    #                 os.chdir(fs.location)
-    #                 image = Image.open(filename)
-    #                 image.save(filename, quailty=50)
-    #                 size = len(Image.open(filename).fp.read())
-    #             is_img = True
-    #
-    #         if 'pdf' in attachment.content_type:
-    #             is_pdf = True
-    #
-    #         Attachment.objects.create(
-    #             invoice=invoice,
-    #             document=document,
-    #             title=filename,
-    #             size=size,
-    #             path='attachment/' + filename,
-    #             isImg=is_img,
-    #             isPdf=is_pdf
-    #         )
-
     def create_invoices(self, document: Document) -> None:
         if document.document_type == '1':
             invoices: list = Invoice.query_batch_invoices([f" RPICU={document.batch_number} "], 'vap_payment1')
@@ -194,16 +130,6 @@ class DocumentServices:
         for invoice in invoices:
             invoice_data = {**invoice, **document_temp}
             Invoice.objects.create(**invoice_data).save()
-
-    def create_sign(self, user: User, seq: int, document: Document, approve_type: str) -> None:
-        result = Sign.get_result_type_by_seq(seq)
-        Sign.objects.create(
-            user=user,
-            document=document,
-            seq=seq,
-            type=approve_type,
-            result=result
-        )
 
     def create_defaulsignlist(self, user: User, approver: Employee, type: int,
                               order: int, document_type: str) -> None:

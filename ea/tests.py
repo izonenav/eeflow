@@ -132,8 +132,8 @@ class EaTest(InitData, TestCase):
     """
     사용자 결재 상신 시 사용되는 Model(Document, Attachment, Sign) 테스트
     """
-    FIRST_BATCH_NUMBER = 9002
-    SECOND_BATCH_NUMBER = 9003
+    FIRST_BATCH_NUMBER = 10148
+    SECOND_BATCH_NUMBER = 10160
 
     def tearDown(self) -> None:
         service = OracleService()
@@ -338,4 +338,8 @@ class EaTest(InitData, TestCase):
 
     def test_get_todo_count(self):
         response: Response = self.drf_client.get('/ea/get_todo_count/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_sign_group(self):
+        response: Response = self.drf_client.get('/ea/sign_group/')
         self.assertEqual(response.status_code, 200)

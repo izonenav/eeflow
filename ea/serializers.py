@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ea.models import DefaulSignList, Document, Attachment, Sign, Push, Invoice
+from ea.models import DefaulSignList, Document, Attachment, Sign, Push, Invoice, SignGroup, SignList
 from employee.models import Employee
 
 
@@ -36,14 +36,13 @@ class SignUsersSerializer(serializers.ModelSerializer):
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Attachment
         fields = '__all__'
 
 
 class SignSerializer(serializers.ModelSerializer):
-    user = SignUsersSerializer(source='user.employee',read_only=True)
+    user = SignUsersSerializer(source='user.employee', read_only=True)
 
     class Meta:
         model = Sign
@@ -51,7 +50,6 @@ class SignSerializer(serializers.ModelSerializer):
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Invoice
         fields = '__all__'
@@ -77,7 +75,26 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 
 class PushSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Push
+        fields = '__all__'
+
+
+class SignListSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='approver.user.first_name')
+    avatar = serializers.ImageField(source='approver.avatar')
+    department = serializers.CharField(source='approver.department.name')
+    position = serializers.CharField(source='approver.position.name')
+    id = serializers.CharField(source='approver.user.username')
+
+    class Meta:
+        model = SignList
+        fields = '__all__'
+
+
+class SignGroupSerializer(serializers.ModelSerializer):
+    sign_lists = SignListSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = SignGroup
         fields = '__all__'

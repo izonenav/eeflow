@@ -1,4 +1,7 @@
+import os
+
 from django.contrib.auth.models import User, Group
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from typing import Union
 
@@ -9,6 +12,7 @@ from django.utils import timezone
 
 from employee.models import Employee, Department
 from erp.services import OracleService
+from PIL import Image
 
 DELETE_STATE_CHOICES = (
     ('Y', '삭제됨'),
@@ -382,6 +386,36 @@ class Attachment(TimeStampedModel):
     def __str__(self):
         return f'{self.title}({self.size}KB)'
 
+    @staticmethod
+    def create_attachments(attachments: list, invoice: Invoice, document: Document) -> None:
+        for attachment in attachments:
+            fs = FileSystemStorage(location=settings.MEDIA_ROOT + '/attachment/')
+            filename = fs.save(attachment.name, attachment)
+            size = attachment.size
+            is_img = False
+            is_pdf = False
+
+            if 'image' in attachment.content_type:
+                if attachment.size > 2000000:  # 3MB 보다 크면 용량 줄이기
+                    os.chdir(fs.location)
+                    image = Image.open(filename)
+                    image.save(filename, quailty=50)
+                    size = len(Image.open(filename).fp.read())
+                is_img = True
+
+            if 'pdf' in attachment.content_type:
+                is_pdf = True
+
+            Attachment.objects.create(
+                invoice=invoice,
+                document=document,
+                title=filename,
+                size=size,
+                path='attachment/' + filename,
+                isImg=is_img,
+                isPdf=is_pdf
+            )
+
 
 class Sign(TimeStampedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sign')
@@ -462,6 +496,17 @@ class Sign(TimeStampedModel):
 
         self.document.finish_deny(f'[반려] {self.document.title}')
 
+    @staticmethod
+    def create_sign(user: User, seq: int, document: Document, approve_type: str) -> None:
+        result = Sign.get_result_type_by_seq(seq)
+        Sign.objects.create(
+            user=user,
+            document=document,
+            seq=seq,
+            type=approve_type,
+            result=result
+        )
+
     def __str__(self):
         return f'{self.document.title}({self.user.first_name}) {self.seq}번째'
 
@@ -483,3 +528,22 @@ class DefaulSignList(TimeStampedModel):
 
     def __str__(self):
         return f'{self.user.first_name}_{self.approver.user.first_name}/{self.order}번째'
+
+
+class SignGroup(TimeStampedModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sign_groups')
+    name = models.CharField(max_length=255)
+
+
+class SignList(TimeStampedModel):
+    group = models.ForeignKey(SignGroup, on_delete=models.CASCADE, related_name='sign_lists')
+    approver = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='+')
+    type = models.CharField(
+        max_length=2,
+        choices=SIGN_TYPE,
+        default='0',
+    )
+    order = models.PositiveSmallIntegerField()
+
+    def __str__(self):
+        return f'{self.approver.user.first_name}/{self.order}번째'
