@@ -98,6 +98,7 @@ def payment_list(request: Request):
 
     columns = [
         {'ids': 'id'},
+        {'RPCO': 'RPCO'},
         {'RPICU': 'RPICU'},
         {'RPDGJ': 'RPDGJ'},
         {'RPALPH': 'RPALPH'},
@@ -163,6 +164,7 @@ def invoice_list(request: Request):
 
     columns = [
         {'ids': 'id'},
+        {'RPCO': 'RPCO'},
         {'RPICU': 'RPICU'},
         {'RPDGJ': 'RPDGJ'},
         {'RPALPH': 'RPALPH'},
@@ -225,6 +227,7 @@ def receipt_list(request: Request):
 
     columns = [
         {'ids': 'id'},
+        {'RPCO': 'RPCO'},
         {'RPICU': 'RPICU'},
         {'RPDGJ': 'RPDGJ'},
         {'RPALPH': 'RPALPH'},
@@ -291,6 +294,7 @@ def nacct_list(request: Request):
 
     columns = [
         {'ids': 'id'},
+        {'RPCO': 'RPCO'},
         {'RPICU': 'RPICU'},
         {'RPDGJ': 'RPDGJ'},
         {'RPALPH': 'RPALPH'},
