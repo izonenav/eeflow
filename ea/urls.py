@@ -19,7 +19,7 @@ from rest_framework_swagger.views import get_swagger_view
 
 from ea.views import send_push, create_document, get_defaultUsers, get_departmentUsers, allUsers, written_document, \
     create_push, delete_push, sign_document, do_sign, approved_document, rejected_document, do_sign_all, get_todo_count, \
-    check_push, document, add_attachment, create_sign_group, sign_group, delete_sign_group
+    check_push, document, add_attachment, create_sign_group, sign_group, delete_sign_group, cc_document, cc_update
 
 API_TITLE = 'Blog API'
 API_DESCRIPTION = 'A Web API for create and edit blog'
@@ -38,6 +38,7 @@ urlpatterns = [
     path('written_document/', written_document, name='written_document'),
     path('approved_document/', approved_document, name='approved_document'),
     path('rejected_document/', rejected_document, name='rejected_document'),
+    path('cc_document/', cc_document, name='cc_document'),
     path('sign_document/', sign_document, name='sign_document'),
 
     path('do_sign/', do_sign, name='do_sign'),
@@ -49,8 +50,9 @@ urlpatterns = [
 
     path('get_todo_count/', get_todo_count, name='get_todo_count'),
 
+    path('cc_update/<int:cc_id>', cc_update, name='cc_update'),
+
     path('create_sign_group/', create_sign_group, name='create_sign_group'),
     path('sign_group/', sign_group, name='sign_group'),
     path('delete_sign_group/<int:sign_group_id>', delete_sign_group, name='delete_sign_group'),
-
 ]

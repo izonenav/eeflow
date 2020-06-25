@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ea.models import DefaulSignList, Document, Attachment, Sign, Push, Invoice, SignGroup, SignList
+from ea.models import DefaulSignList, Document, Attachment, Sign, Push, Invoice, SignGroup, SignList, Cc
 from employee.models import Employee
 
 
@@ -49,6 +49,15 @@ class SignSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CcSerializer(serializers.ModelSerializer):
+    receiver_name = serializers.CharField(source='receiver.user.first_name', read_only=True)
+    receiver_id = serializers.CharField(source='receiver.user.username', read_only=True)
+
+    class Meta:
+        model = Cc
+        fields = '__all__'
+
+
 class InvoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
@@ -65,13 +74,14 @@ class DocumentSerializer(serializers.ModelSerializer):
     attachments = AttachmentSerializer(read_only=True, many=True)
     invoices = InvoiceSerializer(read_only=True, many=True)
     signs = SignSerializer(read_only=True, many=True)
+    carbon_copys = CcSerializer(read_only=True, many=True)
     price = serializers.IntegerField(read_only=True)
     invoices_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Document
         fields = ['id', 'title', 'author', 'author_id', 'department', 'doc_status', 'created', 'batch_number',
-                  'document_type', 'attachments', 'invoices', 'signs', 'price', 'invoices_count']
+                  'document_type', 'attachments', 'invoices', 'signs', 'price', 'invoices_count', 'carbon_copys']
 
 
 class PushSerializer(serializers.ModelSerializer):

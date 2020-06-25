@@ -1,6 +1,5 @@
 import json
 from datetime import date, datetime, time
-from django.utils import timezone
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, QuerySet, Sum, Count, Case, When
@@ -13,10 +12,10 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.request import Request
 
-from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice, SignGroup, Attachment, SignList
+from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice, SignGroup, Attachment, SignList, Cc
 from ea.serializers import DefaultUsersSerializer, SignUsersSerializer, DocumentSerializer, PushSerializer, \
     SignGroupSerializer
-from ea.services import DocumentServices, Approvers, create_date, filter_document
+from ea.services import DocumentServices, Approvers, create_date, filter_document, Receivers
 
 from employee.models import Employee
 from erp.services import OracleService
@@ -79,6 +78,8 @@ def create_document(request: Request):
     document_type: str = request.data.get('document_type')
     approvers: str = request.data.get('approvers')
     approvers: Approvers = json.loads(approvers)
+    receivers: str = request.data.get('receivers')
+    receivers: Receivers = json.loads(receivers)
     attachments_files: list = request.FILES.getlist('files')
     attachments_counts: list = request.POST.getlist('counts')
     attachments_invoices: list = request.POST.getlist('invoices')
@@ -93,6 +94,7 @@ def create_document(request: Request):
                      batch_number=batch_number,
                      document_type=document_type,
                      approvers=approvers,
+                     receivers=receivers,
                      author=author)
 
     service = OracleService()
@@ -158,7 +160,12 @@ def get_todo_count(request: Request):
         Q(signs__result=0),
         Q(signs__user=request.user)).count()
 
-    return Response(data=documents_count, status=status.HTTP_200_OK)
+    cc_count = Document.objects.filter(
+        Q(carbon_copys__receiver__user=request.user),
+        Q(carbon_copys__is_readed=False)
+    ).count()
+
+    return Response(data=[documents_count, cc_count], status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -210,6 +217,31 @@ def approved_document(request: Request):
 
     serializer = DocumentSerializer(documents, many=True)
 
+    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def cc_document(request: Request):
+    paginator = PageNumberPagination()
+    paginator.page_size = 25
+
+    start_date: date = create_date(request.query_params.get('startDate'))
+    end_date: date = create_date(request.query_params.get('endDate'))
+    search: str = request.query_params.get('search')
+    batch_number: str = request.query_params.get('batchNumber', '')
+    user: str = request.query_params.get('user', '')
+    department: str = request.query_params.get('department', '')
+
+    documents: QuerySet = Document.objects.filter(
+        Q(carbon_copys__receiver__user=request.user),
+        Q(created__range=(datetime.combine(start_date, time.min),
+                          datetime.combine(end_date, time.max))))
+
+    documents = filter_document(documents, search, batch_number, user, department)
+    total_number = documents.count()
+    documents = paginator.paginate_queryset(documents, request)
+
+    serializer = DocumentSerializer(documents, many=True)
     return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
@@ -309,6 +341,8 @@ def create_sign_group(request: Request):
     group_name: str = request.data.get('groupName')
     approvers: str = request.data.get('approvers')
     approvers: Approvers = json.loads(approvers)
+    receivers: str = request.data.get('receivers')
+    receivers: Approvers = json.loads(receivers)
 
     if SignGroup.objects.filter(Q(name=group_name), Q(user=request.user)).first():
         return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -321,6 +355,15 @@ def create_sign_group(request: Request):
             group=sign_group,
             approver=employee,
             type=approver.get('type'),
+            order=i
+        )
+
+    for i, receiver in enumerate(receivers):
+        employee: Employee = Employee.objects.get(user__username=receiver.get('id'))
+        SignList.objects.create(
+            group=sign_group,
+            approver=employee,
+            type=Cc.get_cc_type(),
             order=i
         )
 
@@ -340,3 +383,11 @@ def delete_sign_group(request: Request, sign_group_id: int):
     sign_group: QuerySet = SignGroup.objects.filter(user=request.user)
     serializer = SignGroupSerializer(sign_group, many=True)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def cc_update(request: Request, cc_id):
+    cc = Cc.objects.get(id=cc_id)
+    cc.is_readed = True
+    cc.save()
+    return Response(status=status.HTTP_200_OK)

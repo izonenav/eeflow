@@ -262,6 +262,9 @@ class EaTest(InitData, TestCase):
             {"id": "jyy20510", "type": 0},
             {"id": "hck18106", "type": 0},
         ]
+        receivers = [
+            {"id": "cyl20509", "type": 0},
+        ]
 
         invoice: Invoice = Invoice.objects.first()
         counts: list = [1]
@@ -275,7 +278,8 @@ class EaTest(InitData, TestCase):
             "counts": counts,
             "files": files,
             "invoices": invoices,
-            "approvers": json.dumps(approvers)
+            "approvers": json.dumps(approvers),
+            "receivers": json.dumps(receivers)
         }
 
         response: Response = self.drf_client.post('/ea/create_document/', data=data)
@@ -314,6 +318,11 @@ class EaTest(InitData, TestCase):
     def test_rejected_document_view(self):
         data = {'startDate': '2020-01-20', 'endDate': '2020-01-20'}
         response: Response = self.drf_client.get('/ea/rejected_document/', data=data)
+        self.assertEqual(response.status_code, 200)
+
+    def test_cc_document_view(self):
+        data = {'startDate': '2020-01-20', 'endDate': '2020-01-20'}
+        response: Response = self.drf_client.get('/ea/cc_document/', data=data)
         self.assertEqual(response.status_code, 200)
 
     def test_sign_document_view(self):

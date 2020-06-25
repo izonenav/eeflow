@@ -36,7 +36,7 @@ SIGN_RESULT = (
 SIGN_TYPE = (
     ('0', '결재'),
     ('1', '합의'),
-    ('2', '수신및참조'),
+    ('2', '수신참조'),
 )
 
 DOCUMENT_TYPE = (
@@ -547,3 +547,13 @@ class SignList(TimeStampedModel):
 
     def __str__(self):
         return f'{self.approver.user.first_name}/{self.order}번째'
+
+
+class Cc(TimeStampedModel):
+    receiver = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='carbon_copys_lists')
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='carbon_copys')
+    is_readed = models.BooleanField(default=False)
+
+    @staticmethod
+    def get_cc_type():
+        return 2

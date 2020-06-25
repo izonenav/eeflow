@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, QuerySet, Sum
 
-from ea.models import Document, Attachment, Sign, DefaulSignList, Invoice
+from ea.models import Document, Attachment, Sign, DefaulSignList, Invoice, Cc
 from employee.models import Employee
 
 from typing import List, Union
@@ -11,6 +11,7 @@ from typing import List, Union
 from erp.services import OracleService
 
 Approvers = List[dict]
+Receivers = List[dict]
 
 
 def update_batch_number(batch_number: int):
@@ -59,6 +60,7 @@ class DocumentServices:
         batch_number: int = kwargs.get('batch_number')
         document_type: str = kwargs.get('document_type')
         approvers: Approvers = kwargs.get('approvers')
+        receivers: Receivers = kwargs.get('receivers')
         author: User = kwargs.get('author')
 
         document: Document = self.create_document(title, author, approvers, batch_number, document_type)
@@ -89,6 +91,11 @@ class DocumentServices:
             user: User = User.objects.get(username=approver.get('id'))
             Sign.create_sign(user, i, document, approver.get('type'))
             self.create_defaulsignlist(author, user.employee, approver.get('type'), i, document.document_type)
+
+        for i, receiver in enumerate(receivers):
+            employee: Employee = Employee.objects.get(user__username=receiver.get('id'))
+            Cc.objects.create(receiver=employee, document=document)
+            self.create_defaulsignlist(author, employee, Cc.get_cc_type(), i, document.document_type)
 
     def create_document(self, title: str, auhor: User, approvers: Approvers,
                         batch_number: int, document_type: str) -> Document:
