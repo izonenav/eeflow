@@ -420,6 +420,9 @@ def get_occur_invoices(request: Request):
     RPDOC: str = request.query_params.get('RPDOC')
     RPCO: str = request.query_params.get('RPCO')
 
-    occur_invoices: QuerySet = Invoice.objects.filter(Q(RPDOC=RPDOC), Q(RPCO=RPCO), Q(document__document_type__in=['0', '2']))
+    occur_invoices: QuerySet = Invoice.objects.filter(Q(RPDOC=RPDOC), Q(RPCO=RPCO),
+                                                      Q(document__document_type__in=['0', '2']),
+                                                      ~Q(document__doc_status='2'))
+
     serializer = InvoiceSerializer(occur_invoices, many=True)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
