@@ -17,9 +17,10 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_swagger.views import get_swagger_view
 
-from ea.views import send_push, create_document, get_defaultUsers, get_departmentUsers, allUsers, written_document, \
-    create_push, delete_push, sign_document, do_sign, approved_document, rejected_document, do_sign_all, get_todo_count, \
-    check_push, document, add_attachment, create_sign_group, sign_group, delete_sign_group, cc_document, cc_update
+from ea.views import send_push, create_document, get_defaultUsers, get_departmentUsers, allUsers, \
+    create_push, delete_push, sign_document, do_sign, ApprovedDocument, RejectedDocument, do_sign_all, get_todo_count, \
+    check_push, document, add_attachment, create_sign_group, sign_group, delete_sign_group, CcDocument, cc_update, \
+    get_occur_invoices, WrittenDocument
 
 API_TITLE = 'Blog API'
 API_DESCRIPTION = 'A Web API for create and edit blog'
@@ -35,10 +36,10 @@ urlpatterns = [
     path('create_document/', create_document, name='create_document'),
     path('add_attachment/', add_attachment, name='add_attachment'),
     path('document/', document, name='document'),
-    path('written_document/', written_document, name='written_document'),
-    path('approved_document/', approved_document, name='approved_document'),
-    path('rejected_document/', rejected_document, name='rejected_document'),
-    path('cc_document/', cc_document, name='cc_document'),
+    path('written_document/', WrittenDocument.as_view(), name='written_document'),
+    path('approved_document/', ApprovedDocument.as_view(), name='approved_document'),
+    path('rejected_document/', RejectedDocument.as_view(), name='rejected_document'),
+    path('cc_document/', CcDocument.as_view(), name='cc_document'),
     path('sign_document/', sign_document, name='sign_document'),
 
     path('do_sign/', do_sign, name='do_sign'),
@@ -51,6 +52,8 @@ urlpatterns = [
     path('get_todo_count/', get_todo_count, name='get_todo_count'),
 
     path('cc_update/<int:cc_id>', cc_update, name='cc_update'),
+
+    path('get_occur_invoices/', get_occur_invoices, name='get_occur_invoices'),
 
     path('create_sign_group/', create_sign_group, name='create_sign_group'),
     path('sign_group/', sign_group, name='sign_group'),

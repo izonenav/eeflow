@@ -11,11 +11,12 @@ from rest_framework.decorators import api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.views import APIView
 
 from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice, SignGroup, Attachment, SignList, Cc
 from ea.serializers import DefaultUsersSerializer, SignUsersSerializer, DocumentSerializer, PushSerializer, \
-    SignGroupSerializer
-from ea.services import DocumentServices, Approvers, create_date, filter_document, Receivers
+    SignGroupSerializer, InvoiceSerializer
+from ea.services import DocumentServices, Approvers, create_date, Receivers
 
 from employee.models import Employee
 from erp.services import OracleService
@@ -120,8 +121,8 @@ def add_attachment(request: Request):
         if attachment_count > 0:
             invoice_attachments = attachments[0:attachment_count]
             del attachments[0:attachment_count]
-            # create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(), document)
-            Attachment.create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(), document)
+            Attachment.create_attachments(invoice_attachments, Invoice.objects.filter(Q(id=invoice_id)).first(),
+                                          document)
         attachments_counts.pop(0)
 
     return Response(status=status.HTTP_201_CREATED)
@@ -168,81 +169,128 @@ def get_todo_count(request: Request):
     return Response(data=[documents_count, cc_count], status=status.HTTP_200_OK)
 
 
-@api_view(['GET'])
-def written_document(request: Request):
-    paginator = PageNumberPagination()
-    paginator.page_size = 25
+# @api_view(['GET'])
+# def written_document(request: Request):
+#     paginator = PageNumberPagination()
+#     paginator.page_size = 25
+#
+#     start_date: date = create_date(request.query_params.get('startDate'))
+#     end_date: date = create_date(request.query_params.get('endDate'))
+#     search: str = request.query_params.get('search')
+#     batch_number: str = request.query_params.get('batchNumber', '')
+#     user: str = request.query_params.get('user', '')
+#     department: str = request.query_params.get('department', '')
+#
+#     documents: QuerySet = Document.objects.filter(
+#         Q(author=request.user),
+#         Q(created__range=(datetime.combine(start_date, time.min),
+#                           datetime.combine(end_date, time.max))))
+#
+#     documents = filter_document(documents, search, batch_number, user, department)
+#     total_number = documents.count()
+#     documents = paginator.paginate_queryset(documents, request)
+#
+#     serializer = DocumentSerializer(documents, many=True)
+#     return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
-    start_date: date = create_date(request.query_params.get('startDate'))
-    end_date: date = create_date(request.query_params.get('endDate'))
-    search: str = request.query_params.get('search')
-    batch_number: str = request.query_params.get('batchNumber', '')
-    user: str = request.query_params.get('user', '')
-    department: str = request.query_params.get('department', '')
 
-    documents: QuerySet = Document.objects.filter(
-        Q(author=request.user),
+class DocumentMixin:
+    def __init__(self):
+        self.paginator = PageNumberPagination()
+        self.paginator.page_size = 25
+
+    def get_defalut_query_params(self, request: Request):
+        start_date: date = create_date(request.query_params.get('startDate'))
+        end_date: date = create_date(request.query_params.get('endDate'))
+        search: str = request.query_params.get('search')
+        batch_number: str = request.query_params.get('batchNumber', '')
+        user: str = request.query_params.get('user', '')
+        department: str = request.query_params.get('department', '')
+        return start_date, end_date, search, batch_number, user, department
+
+    def filter_document(self, documents: QuerySet, search: str, batch_number: str,
+                        user: str, department: str) -> QuerySet:
+        if search:
+            documents = documents.filter(title__contains=search)
+
+        if batch_number:
+            documents = documents.filter(batch_number=batch_number)
+
+        if user:
+            documents = documents.filter(author__first_name__contains=user)
+
+        if department:
+            documents = documents.filter(author__employee__department__name__contains=department)
+
+        documents = documents.annotate(price=(Sum('invoices__RPZ5DEBITAT') + Sum('invoices__RPZ5CREDITAT')) / 2)
+        return documents
+
+
+class WrittenDocument(DocumentMixin, APIView):
+    def get(self, request: Request):
+        start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
+        documents: QuerySet = Document.objects.filter(
+            Q(author=request.user),
+            Q(created__range=(datetime.combine(start_date, time.min),
+                              datetime.combine(end_date, time.max))))
+
+        documents = self.filter_document(documents, search, batch_number, user, department)
+        total_number = documents.count()
+        documents = self.paginator.paginate_queryset(documents, request)
+
+        serializer = DocumentSerializer(documents, many=True)
+        return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
+
+
+class ApprovedDocument(DocumentMixin, APIView):
+    def get(self, request: Request):
+        start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
+        documents: QuerySet = Document.objects.filter(
+            Q(signs__result__in=[2, 3]),
+            Q(signs__user=request.user),
+            Q(created__range=(datetime.combine(start_date, time.min),
+                              datetime.combine(end_date, time.max))))
+
+        documents = self.filter_document(documents, search, batch_number, user, department)
+        total_number = documents.count()
+        documents = self.paginator.paginate_queryset(documents, request)
+
+        serializer = DocumentSerializer(documents, many=True)
+
+        return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
+
+
+class RejectedDocument(DocumentMixin, APIView):
+    def get(self, request: Request):
+        start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
+        documents: QuerySet = Document.objects.filter(
+        Q(signs__result=3),
+        Q(author__username=request.user),
         Q(created__range=(datetime.combine(start_date, time.min),
                           datetime.combine(end_date, time.max))))
 
-    documents = filter_document(documents, search, batch_number, user, department)
-    total_number = documents.count()
-    documents = paginator.paginate_queryset(documents, request)
+        documents = self.filter_document(documents, search, batch_number, user, department)
+        total_number = documents.count()
+        documents = self.paginator.paginate_queryset(documents, request)
 
-    serializer = DocumentSerializer(documents, many=True)
-    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-def approved_document(request: Request):
-    paginator = PageNumberPagination()
-    paginator.page_size = 25
-
-    start_date: date = create_date(request.query_params.get('startDate'))
-    end_date: date = create_date(request.query_params.get('endDate'))
-    search: str = request.query_params.get('search')
-    batch_number: str = request.query_params.get('batchNumber', '')
-    user: str = request.query_params.get('user', '')
-    department: str = request.query_params.get('department', '')
-
-    documents: QuerySet = Document.objects.filter(
-        Q(signs__result__in=[2, 3]),
-        Q(signs__user=request.user),
-        Q(created__range=(datetime.combine(start_date, time.min),
-                          datetime.combine(end_date, time.max))))
-
-    documents = filter_document(documents, search, batch_number, user, department)
-    total_number = documents.count()
-    documents = paginator.paginate_queryset(documents, request)
-
-    serializer = DocumentSerializer(documents, many=True)
-
-    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
+        serializer = DocumentSerializer(documents, many=True)
+        return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
-@api_view(['GET'])
-def cc_document(request: Request):
-    paginator = PageNumberPagination()
-    paginator.page_size = 25
+class CcDocument(DocumentMixin, APIView):
+    def get(self, request: Request):
+        start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
+        documents: QuerySet = Document.objects.filter(
+            Q(carbon_copys__receiver__user=request.user),
+            Q(created__range=(datetime.combine(start_date, time.min),
+                              datetime.combine(end_date, time.max))))
 
-    start_date: date = create_date(request.query_params.get('startDate'))
-    end_date: date = create_date(request.query_params.get('endDate'))
-    search: str = request.query_params.get('search')
-    batch_number: str = request.query_params.get('batchNumber', '')
-    user: str = request.query_params.get('user', '')
-    department: str = request.query_params.get('department', '')
+        documents = self.filter_document(documents, search, batch_number, user, department)
+        total_number = documents.count()
+        documents = self.paginator.paginate_queryset(documents, request)
 
-    documents: QuerySet = Document.objects.filter(
-        Q(carbon_copys__receiver__user=request.user),
-        Q(created__range=(datetime.combine(start_date, time.min),
-                          datetime.combine(end_date, time.max))))
-
-    documents = filter_document(documents, search, batch_number, user, department)
-    total_number = documents.count()
-    documents = paginator.paginate_queryset(documents, request)
-
-    serializer = DocumentSerializer(documents, many=True)
-    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
+        serializer = DocumentSerializer(documents, many=True)
+        return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -251,32 +299,6 @@ def document(request: Request):
     document: Document = Document.objects.get(id=document_id)
     serializer = DocumentSerializer(document)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-def rejected_document(request: Request):
-    paginator = PageNumberPagination()
-    paginator.page_size = 25
-
-    start_date: date = create_date(request.query_params.get('startDate'))
-    end_date: date = create_date(request.query_params.get('endDate'))
-    search: str = request.query_params.get('search')
-    batch_number: str = request.query_params.get('batchNumber', '')
-    user: str = request.query_params.get('user', '')
-    department: str = request.query_params.get('department', '')
-
-    documents: QuerySet = Document.objects.filter(
-        Q(signs__result=3),
-        Q(author__username=request.user),
-        Q(created__range=(datetime.combine(start_date, time.min),
-                          datetime.combine(end_date, time.max))))
-
-    documents = filter_document(documents, search, batch_number, user, department)
-    total_number = documents.count()
-    documents = paginator.paginate_queryset(documents, request)
-
-    serializer = DocumentSerializer(documents, many=True)
-    return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -386,8 +408,18 @@ def delete_sign_group(request: Request, sign_group_id: int):
 
 
 @api_view(['POST'])
-def cc_update(request: Request, cc_id):
+def cc_update(request: Request, cc_id: int):
     cc = Cc.objects.get(id=cc_id)
     cc.is_readed = True
     cc.save()
     return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def get_occur_invoices(request: Request):
+    RPDOC: str = request.query_params.get('RPDOC')
+    RPCO: str = request.query_params.get('RPCO')
+
+    occur_invoices: QuerySet = Invoice.objects.filter(Q(RPDOC=RPDOC), Q(RPCO=RPCO), Q(document__document_type__in=['0', '2']))
+    serializer = InvoiceSerializer(occur_invoices, many=True)
+    return Response(data=serializer.data, status=status.HTTP_200_OK)

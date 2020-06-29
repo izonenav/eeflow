@@ -32,24 +32,6 @@ def create_date_str(date_list: str) -> str:
     return start_date
 
 
-def filter_document(documents: QuerySet, search: str, batch_number: str,
-                    user: str, department: str) -> QuerySet:
-    if search:
-        documents = documents.filter(title__contains=search)
-
-    if batch_number:
-        documents = documents.filter(batch_number=batch_number)
-
-    if user:
-        documents = documents.filter(author__first_name__contains=user)
-
-    if department:
-        documents = documents.filter(author__employee__department__name__contains=department)
-
-    documents = documents.annotate(price=(Sum('invoices__RPZ5DEBITAT') + Sum('invoices__RPZ5CREDITAT')) / 2)
-    return documents
-
-
 @transaction.atomic
 class DocumentServices:
     def __init__(self, **kwargs):
