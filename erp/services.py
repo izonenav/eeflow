@@ -81,6 +81,10 @@ class OracleService:
         self.cursor.execute(query + where_query)
         self.con.commit()
 
+    def execute_update_query(self, query: str) -> None:
+        self.cursor.execute(query)
+        self.con.commit()
+
     def get_erp_invoices_todo_count(self, users: str):
         query = f" select sum(nvl(cnt1,0)) cnt1,sum(nvl(cnt2,0)) cnt2,sum(nvl(cnt3,0)) cnt3," \
                 f"sum(nvl(cnt4,0)) cnt4,sum(nvl(cnt5,0)) cnt5 \

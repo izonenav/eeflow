@@ -64,6 +64,24 @@ class InvoiceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class OccurDocumentSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source='author.first_name')
+    doc_status = serializers.CharField(source='get_doc_status_display')
+
+    class Meta:
+        model = Document
+        fields = ['author', 'doc_status', 'title', 'batch_number']
+
+
+class OccurInvoiceSerializer(serializers.ModelSerializer):
+    attachments = AttachmentSerializer(read_only=True, many=True)
+    document = OccurDocumentSerializer(read_only=True)
+
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+
+
 class DocumentSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.first_name')
     author_id = serializers.CharField(source='author.username')

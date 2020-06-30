@@ -137,6 +137,16 @@ class Document(TimeStampedModel):
         """
         self.doc_status = '3'
         self.save()
+        # self.update_document_to_erp()
+
+    def update_document_to_erp(self) -> None:
+        """
+        최종결재 후 해당 배치번호 update
+        :return:
+        """
+        oracle = OracleService()
+        query = f" UPDATE PRODDTA.F0011 SET ICIST = 'A', ICPID = 'AUTOPOST' WHERE ICICU = {self.batch_number} "
+        oracle.execute_update_query(query)
 
     def __str__(self):
         return f'{self.title}({self.author.first_name})'
