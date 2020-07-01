@@ -256,6 +256,7 @@ def receipt_list(request: Request):
         {'RPNAME': 'RPNAME'},
         # another
         {'RPPYID': 'RPPYID'},
+        {'RPVLDT': 'RPVLDT'},
         {'RPCKNU': 'RPCKNU'}
     ]
     table = 'var_receipt1'

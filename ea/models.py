@@ -137,7 +137,9 @@ class Document(TimeStampedModel):
         """
         self.doc_status = '3'
         self.save()
-        # self.update_document_to_erp()
+        yyyy, mm, dd = self.invoices.first().RPDGJ.split('-')
+        if yyyy + mm + dd >= '20200701':  # TODO 초기 한달만 운영
+            self.update_document_to_erp()
 
     def update_document_to_erp(self) -> None:
         """
