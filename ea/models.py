@@ -116,8 +116,6 @@ class Document(TimeStampedModel):
             push.send_push(push_content)
 
         crontab으로 대체 하지 않음
-        :param content:
-        :return None:
         """
         self.doc_status = '2'
         self.save()
@@ -132,11 +130,13 @@ class Document(TimeStampedModel):
             push.send_push(push_content)
 
         기능 OFF
-        :param content:
-        :return None:
         """
         self.doc_status = '3'
         self.save()
+
+        if len(self.invoices.first().RPPOST.strip()) != 0:  # RPPOST 값이 blank(기 전기된 전표)면 Update를 하지 않음
+            return
+
         yyyy, mm, dd = self.invoices.first().RPDGJ.split('-')
         if yyyy + mm + dd >= '20200701':  # TODO 초기 한달만 운영
             self.update_document_to_erp()
