@@ -2,7 +2,8 @@ import json
 from datetime import date, datetime, time
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Q, QuerySet, Sum, Count, Case, When
+from django.db.models import Q, QuerySet, Sum, Count, Case, When, Value, F
+from django.db.models.functions import Substr, Concat
 from django.http import HttpResponse, HttpRequest
 from typing import List
 
@@ -16,7 +17,7 @@ from rest_framework.views import APIView
 from ea.models import Push, Document, Sign, DefaulSignList, DOCUMENT_TYPE, Invoice, SignGroup, Attachment, SignList, Cc
 from ea.serializers import DefaultUsersSerializer, SignUsersSerializer, DocumentSerializer, PushSerializer, \
     SignGroupSerializer, OccurInvoiceSerializer
-from ea.services import DocumentServices, Approvers, create_date, Receivers
+from ea.services import DocumentServices, Approvers, Receivers, create_date, create_date_str
 
 from employee.models import Employee
 from erp.services import OracleService
@@ -200,8 +201,8 @@ class DocumentMixin:
         self.paginator.page_size = 25
 
     def get_defalut_query_params(self, request: Request):
-        start_date: date = create_date(request.query_params.get('startDate'))
-        end_date: date = create_date(request.query_params.get('endDate'))
+        start_date: str = create_date_str(request.query_params.get('startDate'))
+        end_date: str = create_date_str(request.query_params.get('endDate'))
         search: str = request.query_params.get('search')
         batch_number: str = request.query_params.get('batchNumber', '')
         user: str = request.query_params.get('user', '')
@@ -209,7 +210,10 @@ class DocumentMixin:
         return start_date, end_date, search, batch_number, user, department
 
     def filter_document(self, documents: QuerySet, search: str, batch_number: str,
-                        user: str, department: str) -> QuerySet:
+                        user: str, department: str, start_date: str, end_date: str) -> QuerySet:
+
+        documents = documents.filter(Q(GL_date__gte=start_date), Q(GL_date__lte=end_date))
+
         if search:
             documents = documents.filter(title__contains=search)
 
@@ -225,20 +229,23 @@ class DocumentMixin:
         documents = documents.annotate(price=(Sum('invoices__RPZ5DEBITAT') + Sum('invoices__RPZ5CREDITAT')) / 2)
         return documents
 
+    def annotate_document(self, documents: QuerySet) -> QuerySet:
+        return documents.annotate(GL_date=Concat(Substr(F('invoices__RPDGJ'), 1, 4),
+                                                 Substr(F('invoices__RPDGJ'), 6, 2),
+                                                 Substr(F('invoices__RPDGJ'), 9, 2)))
+
 
 class WrittenDocument(DocumentMixin, APIView):
     def get(self, request: Request):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
-        documents: QuerySet = Document.objects.filter(
-            Q(author=request.user),
-            Q(created__range=(datetime.combine(start_date, time.min),
-                              datetime.combine(end_date, time.max))))
-
-        documents = self.filter_document(documents, search, batch_number, user, department)
+        documents: QuerySet = Document.objects.filter(Q(author=request.user))
+        documents = self.annotate_document(documents)
+        documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
+        documents = documents.order_by('GL_date')
         total_number = documents.count()
         documents = self.paginator.paginate_queryset(documents, request)
-
         serializer = DocumentSerializer(documents, many=True)
+
         return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
 
 
@@ -247,14 +254,12 @@ class ApprovedDocument(DocumentMixin, APIView):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
         documents: QuerySet = Document.objects.filter(
             Q(signs__result__in=[2, 3]),
-            Q(signs__user=request.user),
-            Q(created__range=(datetime.combine(start_date, time.min),
-                              datetime.combine(end_date, time.max))))
-
-        documents = self.filter_document(documents, search, batch_number, user, department)
+            Q(signs__user=request.user))
+        documents = self.annotate_document(documents)
+        documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
+        documents = documents.order_by('GL_date')
         total_number = documents.count()
         documents = self.paginator.paginate_queryset(documents, request)
-
         serializer = DocumentSerializer(documents, many=True)
 
         return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
@@ -264,12 +269,11 @@ class RejectedDocument(DocumentMixin, APIView):
     def get(self, request: Request):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
         documents: QuerySet = Document.objects.filter(
-        Q(signs__result=3),
-        Q(author__username=request.user),
-        Q(created__range=(datetime.combine(start_date, time.min),
-                          datetime.combine(end_date, time.max))))
-
-        documents = self.filter_document(documents, search, batch_number, user, department)
+            Q(signs__result=3),
+            Q(author__username=request.user))
+        documents = self.annotate_document(documents)
+        documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
+        documents = documents.order_by('GL_date')
         total_number = documents.count()
         documents = self.paginator.paginate_queryset(documents, request)
 
@@ -280,12 +284,10 @@ class RejectedDocument(DocumentMixin, APIView):
 class CcDocument(DocumentMixin, APIView):
     def get(self, request: Request):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
-        documents: QuerySet = Document.objects.filter(
-            Q(carbon_copys__receiver__user=request.user),
-            Q(created__range=(datetime.combine(start_date, time.min),
-                              datetime.combine(end_date, time.max))))
-
-        documents = self.filter_document(documents, search, batch_number, user, department)
+        documents: QuerySet = Document.objects.filter(Q(carbon_copys__receiver__user=request.user))
+        documents = self.annotate_document(documents)
+        documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
+        documents = documents.order_by('GL_date')
         total_number = documents.count()
         documents = self.paginator.paginate_queryset(documents, request)
 

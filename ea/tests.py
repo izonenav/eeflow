@@ -132,8 +132,8 @@ class EaTest(InitData, TestCase):
     """
     사용자 결재 상신 시 사용되는 Model(Document, Attachment, Sign) 테스트
     """
-    FIRST_BATCH_NUMBER = 10148
-    SECOND_BATCH_NUMBER = 10160
+    FIRST_BATCH_NUMBER = 10011
+    SECOND_BATCH_NUMBER = 10066
 
     def tearDown(self) -> None:
         service = OracleService()
