@@ -108,6 +108,7 @@ class Document(TimeStampedModel):
     )
     sign_list = models.CharField(max_length=255)
     batch_number = models.PositiveIntegerField()
+    is_readed_after_finishing = models.BooleanField(default=False)
 
     def finish_deny(self, push_content: str) -> None:
         """

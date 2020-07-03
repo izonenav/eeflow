@@ -164,10 +164,14 @@ def get_todo_count(request: Request):
 
     cc_count = Document.objects.filter(
         Q(carbon_copys__receiver__user=request.user),
-        Q(carbon_copys__is_readed=False)
-    ).count()
+        Q(carbon_copys__is_readed=False)).count()
 
-    return Response(data=[documents_count, cc_count], status=status.HTTP_200_OK)
+    documents_not_reading_after_finished_count: int = Document.objects.filter(
+        Q(doc_status='3'),
+        Q(is_readed_after_finishing=False),
+        Q(author=request.user)).count()
+
+    return Response(data=[documents_count, cc_count, documents_not_reading_after_finished_count], status=status.HTTP_200_OK)
 
 
 # @api_view(['GET'])
@@ -414,6 +418,14 @@ def cc_update(request: Request, cc_id: int):
     cc = Cc.objects.get(id=cc_id)
     cc.is_readed = True
     cc.save()
+    return Response(status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def document_is_readed_update(request: Request, document_id: int):
+    document = Document.objects.get(id=document_id)
+    document.is_readed_after_finishing = True
+    document.save()
     return Response(status=status.HTTP_200_OK)
 
 
