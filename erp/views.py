@@ -255,6 +255,7 @@ def receipt_list(request: Request):
         {'RPCODE': 'RPCODE'},
         {'RPNAME': 'RPNAME'},
         # another
+        {'RPDOCM': 'RPDOCM'},
         {'RPPYID': 'RPPYID'},
         {'RPVLDT': 'RPVLDT'},
         {'RPCKNU': 'RPCKNU'}
