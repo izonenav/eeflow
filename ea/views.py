@@ -242,9 +242,14 @@ class DocumentMixin:
 class WrittenDocument(DocumentMixin, APIView):
     def get(self, request: Request):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
+        is_not_readed: bool = bool(request.query_params.get('isNotReaded', False))
         documents: QuerySet = Document.objects.filter(Q(author=request.user))
         documents = self.annotate_document(documents)
         documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
+
+        if is_not_readed:
+            documents = documents.filter(Q(is_readed_after_finishing=False), Q(doc_status='3'))
+
         documents = documents.order_by('-GL_date')
         total_number = documents.count()
         documents = self.paginator.paginate_queryset(documents, request)
@@ -288,9 +293,14 @@ class RejectedDocument(DocumentMixin, APIView):
 class CcDocument(DocumentMixin, APIView):
     def get(self, request: Request):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
+        is_not_readed: bool = bool(request.query_params.get('isNotReaded', False))
         documents: QuerySet = Document.objects.filter(Q(carbon_copys__receiver__user=request.user))
         documents = self.annotate_document(documents)
         documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
+
+        if is_not_readed:
+            documents = documents.filter(Q(carbon_copys__is_readed=False))
+
         documents = documents.order_by('GL_date')
         total_number = documents.count()
         documents = self.paginator.paginate_queryset(documents, request)
