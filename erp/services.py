@@ -53,9 +53,7 @@ class OracleService:
             for k, v in column.items():
                 select_query += f'{k} as {v} ,'
         if table == 'var_receipt1':
-            return select_query[0:-1] + from_query + where_query + 'order by RPICU, RPSFX'
-            # return select_query[0:-1] + from_query + where_query
-            # return select_query[0:-1] + from_query + where_query
+            return select_query[0:-1] + from_query + where_query + 'order by RPICU, RPPYID, RPCKNU, RPDOCM'
 
         return select_query[0:-1] + from_query + where_query + 'order by RPICU, RPDOC'
 

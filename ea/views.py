@@ -164,7 +164,7 @@ def get_todo_count(request: Request):
 
     cc_count = Document.objects.filter(
         Q(carbon_copys__receiver__user=request.user),
-        Q(carbon_copys__is_readed=False)).count()
+        Q(carbon_copys__is_readed=False)).exclude(doc_status=2).count()
 
     documents_not_reading_after_finished_count: int = Document.objects.filter(
         Q(doc_status='3'),
@@ -294,7 +294,8 @@ class CcDocument(DocumentMixin, APIView):
     def get(self, request: Request):
         start_date, end_date, search, batch_number, user, department = self.get_defalut_query_params(request)
         is_not_readed: bool = bool(request.query_params.get('isNotReaded', False))
-        documents: QuerySet = Document.objects.filter(Q(carbon_copys__receiver__user=request.user))
+        documents: QuerySet = Document.objects.filter(Q(carbon_copys__receiver__user=request.user))\
+            .exclude(doc_status=2)
         documents = self.annotate_document(documents)
         documents = self.filter_document(documents, search, batch_number, user, department, start_date, end_date)
 
