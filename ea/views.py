@@ -174,31 +174,6 @@ def get_todo_count(request: Request):
     return Response(data=[documents_count, cc_count, documents_not_reading_after_finished_count], status=status.HTTP_200_OK)
 
 
-# @api_view(['GET'])
-# def written_document(request: Request):
-#     paginator = PageNumberPagination()
-#     paginator.page_size = 25
-#
-#     start_date: date = create_date(request.query_params.get('startDate'))
-#     end_date: date = create_date(request.query_params.get('endDate'))
-#     search: str = request.query_params.get('search')
-#     batch_number: str = request.query_params.get('batchNumber', '')
-#     user: str = request.query_params.get('user', '')
-#     department: str = request.query_params.get('department', '')
-#
-#     documents: QuerySet = Document.objects.filter(
-#         Q(author=request.user),
-#         Q(created__range=(datetime.combine(start_date, time.min),
-#                           datetime.combine(end_date, time.max))))
-#
-#     documents = filter_document(documents, search, batch_number, user, department)
-#     total_number = documents.count()
-#     documents = paginator.paginate_queryset(documents, request)
-#
-#     serializer = DocumentSerializer(documents, many=True)
-#     return Response(data=serializer.data + [{'total_number': total_number}], status=status.HTTP_200_OK)
-
-
 class DocumentMixin:
     def __init__(self):
         self.paginator = PageNumberPagination()
@@ -451,3 +426,22 @@ def get_occur_invoices(request: Request):
     serializer = OccurInvoiceSerializer(occur_invoices, many=True)
     # serializer = (occur_invoices, many=True)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def read_all_documents(request: Request):
+    pathname: str = request.data.get('pathname')
+    if pathname == '수신참조함':
+        ccs = Cc.objects.filter(Q(is_readed=False), Q(receiver__user=request.user))\
+                        .exclude(document__doc_status='2')
+        for cc in ccs:
+            cc.is_readed = True
+            cc.save()
+    elif pathname == '상신함':
+        documents = Document.objects.filter(Q(is_readed_after_finishing=False),
+                                            Q(doc_status='3'), Q(author=request.user))
+        for document in documents:
+            document.is_readed_after_finishing = True
+            document.save()
+
+    return Response(status=status.HTTP_200_OK)

@@ -20,7 +20,7 @@ from rest_framework_swagger.views import get_swagger_view
 from ea.views import send_push, create_document, get_defaultUsers, get_departmentUsers, allUsers, \
     create_push, delete_push, sign_document, do_sign, ApprovedDocument, RejectedDocument, do_sign_all, get_todo_count, \
     check_push, document, add_attachment, create_sign_group, sign_group, delete_sign_group, CcDocument, cc_update, \
-    get_occur_invoices, WrittenDocument, document_is_readed_update
+    get_occur_invoices, WrittenDocument, document_is_readed_update, read_all_documents
 
 API_TITLE = 'Blog API'
 API_DESCRIPTION = 'A Web API for create and edit blog'
@@ -53,6 +53,7 @@ urlpatterns = [
 
     path('cc_update/<int:cc_id>', cc_update, name='cc_update'),
     path('document_is_readed_update/<int:document_id>', document_is_readed_update, name='document_is_readed_update'),
+    path('read_all_documents/', read_all_documents, name='read_all_documents'),
 
     path('get_occur_invoices/', get_occur_invoices, name='get_occur_invoices'),
 
