@@ -86,7 +86,7 @@ def create_document(request: Request):
     attachments_counts: list = request.POST.getlist('counts')
     attachments_invoices: list = request.POST.getlist('invoices')
 
-    if Document.objects.filter(Q(batch_number=batch_number), ~Q(doc_status=2)).first():
+    if Document.objects.filter(Q(batch_number=batch_number), ~Q(doc_status__in=[2,3])).first():
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
     DocumentServices(attachments=attachments_files,
