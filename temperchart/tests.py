@@ -1,3 +1,5 @@
+from typing import Union
+
 from django.test import TestCase
 from requests import Response
 from rest_framework.test import APIClient
@@ -24,3 +26,9 @@ class TemperChartTest(InitData, TestCase):
         response: Response = self.drf_client.get('/temperchart/get_chart_data/', data=data)
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.data, list)
+
+    def test_get_current_chart_data(self):
+        response: Response = self.drf_client.get('/temperchart/get_current_chart_data/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.data, tuple)
+
