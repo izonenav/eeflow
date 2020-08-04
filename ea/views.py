@@ -144,14 +144,14 @@ def get_defaultUsers(request: Request, document_type: str):
 
 @api_view(['GET'])
 def get_departmentUsers(request: Request):
-    employees = Employee.objects.filter(department=request.user.employee.department)
+    employees = Employee.objects.filter(Q(department=request.user.employee.department), Q(is_emplyee=True))
     serializer = SignUsersSerializer(employees, many=True)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 def allUsers(request: Request):
-    employees = Employee.objects.all()
+    employees = Employee.objects.filter(is_emplyee=True)
     serializer = SignUsersSerializer(employees, many=True)
     return Response(data=serializer.data, status=status.HTTP_200_OK)
 

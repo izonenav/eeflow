@@ -59,6 +59,7 @@ class Employee(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='department',
                                    blank=True, null=True)
     avatar = models.ImageField(blank=True, upload_to='avatar/')
+    is_emplyee = models.BooleanField(default=True)
 
     def get_order(self):
         return int(str(self.position.order) + str(self.department.order) + str(self.user.id))
