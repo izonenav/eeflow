@@ -44,7 +44,7 @@ class CurrentChartData(ChartMixin, APIView):
         query = f"select CONVERT(CHAR(10),sztime,23) 일자,CONVERT(CHAR(5),sztime,24) 시분,cchk,round(nsettemp,1) 설정온도, \
                 round(ntemp,1) 현재온도,szTime 현재시간 ,datediff(mi,MIN(sztime) over (partition by szdate),sztime) as 가동시간 \
                 from   kcfeed.templog \
-                where  sztime >= '{str(before_five_min)[:-4]}'\
+                where  sztime >= '{str(before_five_min)[:-4]}' and cchk = 'Y'\
                 order  by sztime DESC"
 
         self.cursor.execute(query)
