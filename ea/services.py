@@ -59,7 +59,7 @@ class DocumentServices:
                 del attachments[0:attachment_count]
                 Attachment.create_attachments(invoice_attachments,
                                               Invoice.objects.filter(Q(IDS=invoice_id),
-                                                                     ~Q(document__doc_status=2)).first(),
+                                                                     ~Q(document__doc_status__in=['2', '3'])).first(),
                                               document)
 
             attachments_counts.pop(0)
